@@ -51,15 +51,15 @@ def update_check():
             print("[ Download Page ]")
             print("[  > https://github.com/Zurek0x/NuremX < ]")
             print("Would you like to bypass this? [Y/N]")
-            update_check_y_n = input("[>] ")
-            if update_check_y_n == 'y':
-                clear()
-            elif update_check_y_n == 'n':
-                exit()
-            elif update_check_y_n == 'Y':
-                clear()
-            elif update_check_y_n == 'N':
-                exit()
+            # update_check_y_n = input("[>] ")
+            # if update_check_y_n == 'y':
+            #     clear()
+            # elif update_check_y_n == 'n':
+            #     exit()
+            # elif update_check_y_n == 'Y':
+            #     clear()
+            # elif update_check_y_n == 'N':
+            #     exit()
                 
 def create_config():
     config.add_section("settings")
