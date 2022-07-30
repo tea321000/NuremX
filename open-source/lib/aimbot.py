@@ -2,7 +2,7 @@ import ctypes
 import cv2
 import json
 import math
-import mss
+# import mss
 import numpy as np
 import os
 import sys
@@ -14,6 +14,8 @@ import string
 import random
 import configparser
 from termcolor import colored
+import dxcam
+
 
 title_gen = string.ascii_letters
 title_str = ''.join(random.choice(title_gen) for i in range(30))
@@ -22,6 +24,12 @@ config = configparser.ConfigParser()
 config.read('configuration_settings.ini')
 size_of_window_str = config['settings']['size_of_window']
 size_of_window = int(size_of_window_str)
+res_X = int(config['settings']['resolution_X'])
+res_Y = int(config['settings']['resolution_Y'])
+half_res_X = res_X//2
+half_res_Y = res_Y//2
+fps = int(config['settings']['fps'])
+
 
 confidence_threshold = config.getfloat('settings', 'confidence_threshold')
 NMS_IoU = config.getfloat('settings', 'nms_iou')
@@ -67,7 +75,12 @@ class POINT(ctypes.Structure):
 class Aimbot:
     extra = ctypes.c_ulong(0)
     ii_ = Input_I()
-    screen = mss.mss()
+    # screen = mss.mss()
+    # screen = screenshot.Screenshot().capture((320, 180, 1920, 1080))
+    screen = dxcam.create(device_idx=0, output_idx=0, output_color="BGR")
+    top, left = (res_X - size_of_window) // 2, (res_Y - size_of_window) // 2
+    screen.start(region=(top, left,top + size_of_window , left + size_of_window),target_fps=fps)
+
     pixel_increment = get_pixel_increse #controls how many pixels the mouse moves for each relative movement
     with open("lib/config/config.json") as f:
         sens_config = json.load(f)
@@ -122,7 +135,7 @@ class Aimbot:
     def is_target_locked(x, y):
         #plus/minus 5 pixel threshold
         threshold = 5
-        return True if 1280 - threshold <= x <= 1280 + threshold and 720 - threshold <= y <= 720 + threshold else False
+        return True if half_res_X - threshold <= x <= half_res_X + threshold and half_res_Y - threshold <= y <= half_res_Y + threshold else False
 
     def move_crosshair(self, x, y):
         if Aimbot.is_targeted():
@@ -132,7 +145,7 @@ class Aimbot:
 
         if self.debug: start_time = time.perf_counter()
         for rel_x, rel_y in Aimbot.interpolate_coordinates_from_center((x, y), scale):
-            # print("rel x, "+str(rel_x) + "rel_y:"+str(rel_y))
+            print("rel x, "+str(rel_x) + "rel_y:"+str(rel_y))
             Aimbot.ii_.mi = MouseInput(rel_x, rel_y, 0, 0x0001, 0, ctypes.pointer(Aimbot.extra))
             input_obj = Input(ctypes.c_ulong(0), Aimbot.ii_)
             ctypes.windll.user32.SendInput(1, ctypes.byref(input_obj), ctypes.sizeof(input_obj))
@@ -144,9 +157,9 @@ class Aimbot:
 
     #generator yields pixel tuples for relative movement
     def interpolate_coordinates_from_center(absolute_coordinates, scale):
-        diff_x = (absolute_coordinates[0] - 1280) * scale/Aimbot.pixel_increment/2
-        diff_y = (absolute_coordinates[1] - 720) * scale/Aimbot.pixel_increment/2
-        # print("diff x" + str(diff_x) + ",diff_y" + str(diff_y))
+        diff_x = (absolute_coordinates[0] - half_res_X) * scale/Aimbot.pixel_increment/2
+        diff_y = (absolute_coordinates[1] - half_res_Y) * scale/Aimbot.pixel_increment/2
+        print("diff x" + str(diff_x) + ",diff_y" + str(diff_y))
         length = int(math.dist((0,0), (diff_x, diff_y)))
         if length == 0: return
         
@@ -163,19 +176,20 @@ class Aimbot:
 
     def start(self):
         Aimbot.update_status_aimbot()
-        half_screen_width = 1280 #this should always be 960
-        half_screen_height = 720 #this should always be 540
-        detection_box = {'left': 780, #x1 coord (for top-left corner of the box)
-                          'top': 220, #y1 coord (for top-left corner of the box)
-                          'width': 1000,  #width of the box
-                          'height': 1000} #height of the box
+        half_screen_width = res_X // 2 #this should always be 960
+        half_screen_height = res_Y // 2 #this should always be 540
+        detection_box = {'left': half_res_X - size_of_window // 2, #x1 coord (for top-left corner of the box)
+                          'top': half_res_Y, #y1 coord (for top-left corner of the box)
+                          'width': size_of_window,  #width of the box
+                          'height': size_of_window} #height of the box
         if self.collect_data:
             collect_pause = 0
 
         while True:
             start_time = time.perf_counter()
             try:
-                frame = np.array(Aimbot.screen.grab(detection_box))
+                # frame = np.array(screen.grab((960,400,1600,1040)))
+                frame = np.array(Aimbot.screen.get_latest_frame())
                 if self.collect_data: orig_frame = np.copy((frame))
                 results = self.model(frame)
 
@@ -200,44 +214,46 @@ class Aimbot:
 
                         if not own_player:
                             pass
-                            # cv2.rectangle(frame, x1y1, x2y2, (244, 113, 115), 2) #draw the bounding boxes for all of the player detections (except own)
-                            # cv2.putText(frame, f"{int(conf * 100)}%", x1y1, cv2.FONT_HERSHEY_DUPLEX, 0.5, (244, 113, 116), 2) #draw the confidence labels on the bounding boxes
+                            cv2.rectangle(frame, x1y1, x2y2, (244, 113, 115), 2) #draw the bounding boxes for all of the player detections (except own)
+                            cv2.putText(frame, f"{int(conf * 100)}%", x1y1, cv2.FONT_HERSHEY_DUPLEX, 0.5, (244, 113, 116), 2) #draw the confidence labels on the bounding boxes
                         else:
                             own_player = False
                             if not player_in_frame:
                                 player_in_frame = True
 
                     if closest_detection: #if valid detection exists
-                        # cv2.circle(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), 5, (115, 244, 113), -1) #draw circle on the head
+                        cv2.circle(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), 5, (115, 244, 113), -1) #draw circle on the head
 
                         # #draw line from the crosshair to the head
-                        # cv2.line(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), (self.box_constant//2, self.box_constant//2), (244, 242, 113), 2)
+                        cv2.line(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), (self.box_constant//2, self.box_constant//2), (244, 242, 113), 2)
 
                         absolute_head_X, absolute_head_Y = closest_detection["relative_head_X"] + detection_box['left'], closest_detection["relative_head_Y"] + detection_box['top']
 
                         x1, y1 = closest_detection["x1y1"]
-                        # if Aimbot.is_target_locked(absolute_head_X, absolute_head_Y):
-                        #     cv2.putText(frame, "LOCKED", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 244, 113), 2) #draw the confidence labels on the bounding boxes
-                        # else:
-                        #     cv2.putText(frame, "TARGETING", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 113, 244), 2) #draw the confidence labels on the bounding boxes
+                        if Aimbot.is_target_locked(absolute_head_X, absolute_head_Y):
+                            cv2.putText(frame, "LOCKED", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 244, 113), 2) #draw the confidence labels on the bounding boxes
+                        else:
+                            cv2.putText(frame, "TARGETING", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 113, 244), 2) #draw the confidence labels on the bounding boxes
 
                         if Aimbot.is_aimbot_enabled():
                             Aimbot.move_crosshair(self, absolute_head_X, absolute_head_Y)
 
-                # if self.collect_data and time.perf_counter() - collect_pause > 1 and Aimbot.is_targeted() and Aimbot.is_aimbot_enabled() and not player_in_frame: #screenshots can only be taken every 1 second
-                #     cv2.imwrite(f"lib/data/{str(uuid.uuid4())}.jpg", orig_frame)
-                #     collect_pause = time.perf_counter()
-                # cv2.putText(frame, f"FPS: {int(1/(time.perf_counter() - start_time))}", (5, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (113, 116, 244), 2)
-                # cv2.imshow(title_str, frame)
+                if self.collect_data and time.perf_counter() - collect_pause > 1 and Aimbot.is_targeted() and Aimbot.is_aimbot_enabled() and not player_in_frame: #screenshots can only be taken every 1 second
+                    cv2.imwrite(f"lib/data/{str(uuid.uuid4())}.jpg", orig_frame)
+                    collect_pause = time.perf_counter()
+                cv2.putText(frame, f"FPS: {int(1/(time.perf_counter() - start_time))}", (5, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (113, 116, 244), 2)
+                cv2.imshow(title_str, frame)
             except Exception as e:
                 print(e)
-                print("try restart")
-                os.execv(sys.executable, ['python'] + sys.argv)
+                Aimbot.clean_up()
+                # print("try restart")
+                # os.execv(sys.executable, ['python'] + sys.argv)
             if cv2.waitKey(1) & 0xFF == ord('0'):
                 break
 
     def clean_up():
-        Aimbot.screen.close()
+        Aimbot.screen.stop()
+        # Aimbot.screen.close()
         os._exit(0)
 
 if __name__ == "__main__": print("You are in the wrong directory and are running the wrong file; you must run NuremX.py")
