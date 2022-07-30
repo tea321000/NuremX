@@ -29,6 +29,7 @@ res_Y = int(config['settings']['resolution_Y'])
 half_res_X = res_X//2
 half_res_Y = res_Y//2
 fps = int(config['settings']['fps'])
+speed_div = int(config['settings']['speed_div'])
 
 
 confidence_threshold = config.getfloat('settings', 'confidence_threshold')
@@ -157,10 +158,10 @@ class Aimbot:
 
     #generator yields pixel tuples for relative movement
     def interpolate_coordinates_from_center(absolute_coordinates, scale):
-        diff_x = (absolute_coordinates[0] - half_res_X) * scale/Aimbot.pixel_increment/2
-        diff_y = (absolute_coordinates[1] - half_res_Y) * scale/Aimbot.pixel_increment/2
-        print("coord_x", absolute_coordinates[0], "coord_y", absolute_coordinates[1])
-        print("diff x" + str(diff_x) + ",diff_y" + str(diff_y))
+        diff_x = (absolute_coordinates[0] - half_res_X) * scale/Aimbot.pixel_increment/speed_div
+        diff_y = (absolute_coordinates[1] - half_res_Y) * scale/Aimbot.pixel_increment/speed_div
+        # print("coord_x", absolute_coordinates[0], "coord_y", absolute_coordinates[1])
+        # print("diff x" + str(diff_x) + ",diff_y" + str(diff_y))
         length = int(math.dist((0,0), (diff_x, diff_y)))
         if length == 0: return
         
@@ -177,10 +178,10 @@ class Aimbot:
 
     def start(self):
         Aimbot.update_status_aimbot()
-        half_screen_width = res_X // 2 #this should always be 960
-        half_screen_height = res_Y // 2 #this should always be 540
+        # half_screen_width = res_X // 2 #this should always be 960
+        # half_screen_height = res_Y // 2 #this should always be 540
         detection_box = {'left': half_res_X - size_of_window // 2, #x1 coord (for top-left corner of the box)
-                          'top': half_res_Y, #y1 coord (for top-left corner of the box)
+                          'top': half_res_Y - size_of_window // 2, #y1 coord (for top-left corner of the box)
                           'width': size_of_window,  #width of the box
                           'height': size_of_window} #height of the box
         if self.collect_data:
@@ -215,40 +216,40 @@ class Aimbot:
 
                         if not own_player:
                             pass
-                            cv2.rectangle(frame, x1y1, x2y2, (244, 113, 115), 2) #draw the bounding boxes for all of the player detections (except own)
-                            cv2.putText(frame, f"{int(conf * 100)}%", x1y1, cv2.FONT_HERSHEY_DUPLEX, 0.5, (244, 113, 116), 2) #draw the confidence labels on the bounding boxes
+                            # cv2.rectangle(frame, x1y1, x2y2, (244, 113, 115), 2) #draw the bounding boxes for all of the player detections (except own)
+                            # cv2.putText(frame, f"{int(conf * 100)}%", x1y1, cv2.FONT_HERSHEY_DUPLEX, 0.5, (244, 113, 116), 2) #draw the confidence labels on the bounding boxes
                         else:
                             own_player = False
                             if not player_in_frame:
                                 player_in_frame = True
 
                     if closest_detection: #if valid detection exists
-                        cv2.circle(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), 5, (115, 244, 113), -1) #draw circle on the head
+                        # cv2.circle(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), 5, (115, 244, 113), -1) #draw circle on the head
 
                         # #draw line from the crosshair to the head
-                        cv2.line(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), (self.box_constant//2, self.box_constant//2), (244, 242, 113), 2)
+                        # cv2.line(frame, (closest_detection["relative_head_X"], closest_detection["relative_head_Y"]), (self.box_constant//2, self.box_constant//2), (244, 242, 113), 2)
 
                         absolute_head_X, absolute_head_Y = closest_detection["relative_head_X"] + detection_box['left'], closest_detection["relative_head_Y"] + detection_box['top']
 
                         x1, y1 = closest_detection["x1y1"]
-                        if Aimbot.is_target_locked(absolute_head_X, absolute_head_Y):
-                            cv2.putText(frame, "LOCKED", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 244, 113), 2) #draw the confidence labels on the bounding boxes
-                        else:
-                            cv2.putText(frame, "TARGETING", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 113, 244), 2) #draw the confidence labels on the bounding boxes
+                        # if Aimbot.is_target_locked(absolute_head_X, absolute_head_Y):
+                        #     cv2.putText(frame, "LOCKED", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 244, 113), 2) #draw the confidence labels on the bounding boxes
+                        # else:
+                        #     cv2.putText(frame, "TARGETING", (x1 + 40, y1), cv2.FONT_HERSHEY_DUPLEX, 0.5, (115, 113, 244), 2) #draw the confidence labels on the bounding boxes
 
                         if Aimbot.is_aimbot_enabled():
                             Aimbot.move_crosshair(self, absolute_head_X, absolute_head_Y)
 
                 if self.collect_data and time.perf_counter() - collect_pause > 1 and Aimbot.is_targeted() and Aimbot.is_aimbot_enabled() and not player_in_frame: #screenshots can only be taken every 1 second
-                    cv2.imwrite(f"lib/data/{str(uuid.uuid4())}.jpg", orig_frame)
+                    # cv2.imwrite(f"lib/data/{str(uuid.uuid4())}.jpg", orig_frame)
                     collect_pause = time.perf_counter()
-                cv2.putText(frame, f"FPS: {int(1/(time.perf_counter() - start_time))}", (5, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (113, 116, 244), 2)
-                cv2.imshow(title_str, frame)
+                # cv2.putText(frame, f"FPS: {int(1/(time.perf_counter() - start_time))}", (5, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (113, 116, 244), 2)
+                # cv2.imshow(title_str, frame)
             except Exception as e:
                 print(e)
                 Aimbot.clean_up()
-                # print("try restart")
-                # os.execv(sys.executable, ['python'] + sys.argv)
+                print("try restart")
+                os.execv(sys.executable, ['python'] + sys.argv)
             if cv2.waitKey(1) & 0xFF == ord('0'):
                 break
 
