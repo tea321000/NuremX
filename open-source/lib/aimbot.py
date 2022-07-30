@@ -145,7 +145,7 @@ class Aimbot:
 
         if self.debug: start_time = time.perf_counter()
         for rel_x, rel_y in Aimbot.interpolate_coordinates_from_center((x, y), scale):
-            print("rel x, "+str(rel_x) + "rel_y:"+str(rel_y))
+            # print("rel x, "+str(rel_x) + "rel_y:"+str(rel_y))
             Aimbot.ii_.mi = MouseInput(rel_x, rel_y, 0, 0x0001, 0, ctypes.pointer(Aimbot.extra))
             input_obj = Input(ctypes.c_ulong(0), Aimbot.ii_)
             ctypes.windll.user32.SendInput(1, ctypes.byref(input_obj), ctypes.sizeof(input_obj))
@@ -159,6 +159,7 @@ class Aimbot:
     def interpolate_coordinates_from_center(absolute_coordinates, scale):
         diff_x = (absolute_coordinates[0] - half_res_X) * scale/Aimbot.pixel_increment/2
         diff_y = (absolute_coordinates[1] - half_res_Y) * scale/Aimbot.pixel_increment/2
+        print("coord_x", absolute_coordinates[0], "coord_y", absolute_coordinates[1])
         print("diff x" + str(diff_x) + ",diff_y" + str(diff_y))
         length = int(math.dist((0,0), (diff_x, diff_y)))
         if length == 0: return
