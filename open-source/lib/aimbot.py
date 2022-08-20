@@ -243,7 +243,7 @@ class Aimbot:
                 if self.collect_data and time.perf_counter() - collect_pause > 1 and Aimbot.is_targeted() and Aimbot.is_aimbot_enabled() and not player_in_frame: #screenshots can only be taken every 1 second
                     # cv2.imwrite(f"lib/data/{str(uuid.uuid4())}.jpg", orig_frame)
                     collect_pause = time.perf_counter()
-                cv2.putText(frame, f"FPS: {int(1/(time.perf_counter() - start_time))}", (int(5*img_resize), int(30*img_resize)), cv2.FONT_HERSHEY_DUPLEX, 1, (113, 116, 244), 2)
+                cv2.putText(frame, f"FPS: {int(1/(time.perf_counter() - start_time))}", (5, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (113, 116, 244), 2)
                 cv2.imshow(title_str, cv2.resize(frame, (int(frame.shape[1]*img_resize), int(frame.shape[0]*img_resize))))
             except Exception as e:
                 print(e)
